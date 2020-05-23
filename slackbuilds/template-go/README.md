@@ -28,7 +28,9 @@ can be ran from a directory containing only a `slack-desc` file
   * handle librarys (no main packages in repo)
 
 
-### Example
+### Examples
+
+**NOTE: You still need to provide slack-desc file in working directory!**
 
 #### Super lazy mode
 
@@ -48,8 +50,6 @@ CMDS='example1 example2' go-template.SlackBuild github.com/foo/bar
 ```
 
 #### Basic usage, cloning latest source
-
-**NOTE: You still need to provide slack-desc file in working directory!**
 
 Build commands foo and bar from the master branch ./cmd/foo and ./cmd/bar:
 
