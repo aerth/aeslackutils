@@ -1,7 +1,10 @@
 #!/bin/sh
 
 # Slackware build script for Go Things
-
+#
+# SEE LATEST VERSION AT:
+# https://github.com/aerth/slack/raw/master/slackbuilds/template-go/go-template.SlackBuild
+#
 # Copyright 2020 you <your-email>
 # All rights reserved.
 #
