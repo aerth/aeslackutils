@@ -1,0 +1,347 @@
+#!/bin/sh
+
+# Note: From https://sourceforge.net/projects/slack-desc/
+
+# Copyright (c) 2010 - 2011 Vasileios Porpodas 
+# 
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#                                                                              
+#    The above copyright notice and this permission notice shall be            
+#    included in all copies or substantial portions of the Software.           
+#                                                                              
+#    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,           
+#    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES           
+#    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND                  
+#    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT               
+#    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,              
+#    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING              
+#    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR             
+#    OTHER DEALINGS IN THE SOFTWARE.                                           
+#                                                                              
+# This software is licensed under GPL 3 License. http://gplv3.fsf.org/
+
+# ABOUT
+# Slack-desc is a script that generates the slack-desc files for
+# Slackware linux packages (http://www.slackware.org). 
+# It supports two modes of operation: 
+#   o the argument-based one 
+#   o the interactive one which guides you thourgh the process.
+# The output is printed on the screen.
+
+
+# EXAMPLE
+# a. argument-based:
+# ./slack-desc-gen "slack-desc" "0.01" "slackware slack-desc generator
+#  script" "Slack-desc is a script that generates the slack-desc files
+#  for slackware linux packages. It supports two modes of operation: the
+#  argument-based one and the interactive one." "http://slack-desc-gen
+#  .sourceforge.net"
+#
+# b. interactive:
+# ./slack-desc-gen -i
+#
+# 
+
+
+# Read from stdin until newline or LIMIT
+# Usage: SIMPLEINPUT LIMIT
+simpleinput()
+{
+    local limit=$1
+    read -a IN -n $limit
+    $ECHO ${IN[@]}
+}
+
+
+# Read stdin until the special characters are typed in.
+# or until charecter LIMIT is reached. Return the input string up
+# to the LIMIT.
+# Usage: GETINPUT LIMIT
+getinput()
+{
+    local limit=$1
+    local i=2
+    while [ "${ALL[i-2]}" != ";" ]||[ "${ALL[i-1]}" != ";" ] ;do 
+	if [ $i -gt $limit ];then
+	    $ECHO "Warning: Character limit of $limit exceeded." 1>&2
+	    $ECHO -e $str
+	    exit -1
+	fi
+	read -a IN -n 1
+        #convert newlines into spaces
+	if [ "$IN" == "" ]; then IN=" "; fi
+	ALL[i]=$IN
+	str+=$IN
+	i=$(($i+1))
+    done
+    local max=$(($i - 4))
+    local str=`$ECHO $str|head -c $max`
+    $ECHO -e $str
+}
+
+# Format the given STRING in slack-desc format using PKGNAME prefix.
+# Make sure that it takes up to LINES lines.
+# Usage: FORMAT PKGNAME "STRING" LINES
+format() 
+{
+    # LINES
+    local max_lines=$3
+
+    local lines=1
+    local out=""
+    local wordlist=( )
+    local i=0
+
+    # STRING
+    for word in $2; do
+	wordlist[$i]=$word
+	i=$(($i + 1))
+    done
+    local max=${#wordlist[@]}
+
+    # "PKGNAME: "
+    local fmted_pname="$1: "
+    local linebuffer="${fmted_pname}"
+    i=0;
+    while [ $i -le $max ]; do
+	if [ $lines -le $max_lines ] ; then
+	    local linebuffer_chars=`get_length "$linebuffer"`
+	    local next_word=${wordlist[$i]}
+	    local next_word_chars=$((`get_length $next_word`))
+	    # Test if adding the next word will overflow the screen width.
+	    local test_chars=$(($linebuffer_chars + $next_word_chars + 1)) 
+	    if [ $test_chars -lt $screen_width ]; then
+		linebuffer+="$next_word "
+	    else
+		lines=$(($lines + 1))
+		# commit linbuffer to the output buffer
+		out+="$linebuffer\n"
+		linebuffer="${fmted_pname}"
+		# redo the last one.
+		i=$(($i - 1))
+	    fi
+	else
+	    if [ $i -lt $((max)) ]; then
+		OVERFLOW="Y"
+		break
+	    fi
+	fi
+	i=$(($i + 1))
+    done
+    if [ $lines -le $max_lines ]; then
+	out+="$linebuffer\n"
+    fi
+
+    #This is a hack. all other checks are done in sanity_check()
+    if [ "$OVERFLOW" == "Y" ]; then
+    	if [ ! "$DISABLED_CHECKS" == "N" ]; then
+            # FORCE EXIT ON ERROR
+    	    check_size "$description" $description_limit "FORCE"
+    	fi
+    fi
+
+
+    # line padding: add lines until we reach max_lines
+    for ((i=lines; i < max_lines; i++ )); do
+	out+="${fmted_pname}\n"
+    done
+    $PRINTF "$out"
+    if [ "$OUTFILE" != "" ]; then
+	$ECHO -e $out >> $OUTFILE
+    fi
+
+}
+
+# Print help message.
+# Usage HELP_MESSAGE
+help_message()
+{
+$ECHO -e "Usage: $PKGNAME \"<package name>\" \"<version>\" \"<Short description>\" \"<Long description>\" \"<http://homepage>\" [ -r ] [ -n ]\n\
+ OR\n\
+Usage: $PKGNAME -i [ -r ] [ -n ]  // Interactive wizard (beta)\n\
+\n\
+Example: $PKGNAME \"slackdesc\" \"0.01\" \"slackware slack-desc generator tool\" \"$PKGNAME is a tool that generates the slack-desc files for Slackware linux packages. It supports two modes of operation: the argument-based one and the interactive one.\" \"http://slack-desc.sourceforge.net\" \n\
+\n\
+Arguments description\n\
+-i                   Launch interactive wizard\n\
+<package name>       Single word; The name of the package (application name)\n\
+<version>            The application version\n\
+<short description>  A short description that fits one line\n\
+<long description>   A description up to 7 lines long\n\
+<http://homepage>    The project homepage. Should fit in 1 line\n\
+-r                   Show handy ruler on top\n\
+-n                   Disable sanity checks\n\
+"
+}
+
+# Get a string's length (count of characters)
+# Usage: GET_LENGTH STRING
+get_length() {	
+    string="$@"
+    # don't use $ECHO because it inserts extra newline chars, destroys count
+    local length=`$PRINTF "$string"|$WC -c`
+    $ECHO $length
+}
+
+# Parse the command line arguments
+# Usage PARSE_INPUT [ARG1] [ARG2] ...
+parse_input(){
+
+    if [ "$1" == "" ]||[ "$1" == "--help" ] || [ "$1" == "-help" ] || [ $# -eq 0 ]; then
+	help_message
+	exit -1
+    fi;
+    SHOW_RULER="N"
+    local INTERACTIVE="N"
+    if [ "$1" == "-i" ] || [ "$1" == "--interactive" ] || [ "$1" == "-interactive" ]; then
+	INTERACTIVE="Y"
+	if [ "$2" == "-r" ]; then
+	    SHOW_RULER="Y"
+	fi
+    fi
+    if [ "$6" == "-r" ]||[ "$7" == "-r" ]; then
+	SHOW_RULER="Y"
+    fi
+
+    DISABLE_CHECKS="N"
+    if [ "$6" == "-n" ]||[ "$7" == "-n" ]; then
+	DISABLE_CHECKS="Y"
+    fi
+    
+
+    package_name_limit=$(($screen_width-10))
+    version_limit=20
+
+    if [ "$INTERACTIVE" == "Y" ]; then
+	$ECHO -e "\nEnter package name"
+	local package_name="`simpleinput $package_name_limit`"
+	local name_width=`get_length "${package_name} :"`
+	homepage_limit=$(($screen_width - $name_width))
+
+	$ECHO -e "\nEnter application version"
+	local version="`simpleinput $version_limit`"
+	local version_width=`get_length "$version"`
+	local package_name_width=`get_length "$package_name"`
+	summary_limit=$(($screen_width - $name_width - $version_width - $package_name_width))
+	description_limit=$(($summary_limit * $desc_lines))
+
+	$ECHO -e "\nEnter package summary"
+	local summary="`simpleinput $summary_limit`"
+
+	$ECHO -e "\nEnter package description --> USE \";;\" TO END INPUT <--" 
+	local description="`getinput $description_limit`"
+
+	$ECHO -e "\nEnter application's homepage"
+	local homepage="`simpleinput $homepage_limit`"
+
+    else
+	package_name="$1"
+	version="$2"
+	summary="$3"
+	description="$4"
+	homepage="$5"
+
+	local name_width=`get_length "${package_name}: "`
+	homepage_limit=$(($screen_width - $name_width))
+	local version_width=`get_length "$version"`
+	local package_name_width=`get_length "$package_name"`
+	summary_limit=$(($screen_width - $name_width - $version_width - $package_name_width))
+	description_limit=$(($(($screen_width - $name_width -1)) * $desc_lines))
+
+    fi
+}
+
+
+# Check whether the STRING's size is less than or equal to MAX_LENGTH
+# If FORCE_ERROR is "FORCE" then ignore the check and fail.
+# Usage: CHECK_SIZE STRING MAX_LENGTH [FORCE_ERROR]
+check_size() 
+{
+    local string="$1"
+    local length=$2
+    local FORCE_ERROR=$3
+    local chars=`get_length "$string"`
+    if [ $chars -ge ${length} ]||[ "$FORCE_ERROR" == "FORCE" ]; then
+	$ECHO "ERROR! string: "+${string} +" too big!"
+	exit -1
+    fi
+}
+
+# Sanity checks about input's character lengths
+# Usage: SANITY_CHECKS 
+sanity_checks(){
+    if [ ! "DISABLE_CHECKS" == "Y" ]; then
+	check_size "$package_name" $package_name_limit
+	check_size "$version" $version_limit
+	check_size "$package_name: $package_name $version" $(($screen_width))
+	check_size "$summary" $summary_limit
+	check_size "$package_name: $package_name $version $summary" $(($screen_width))
+	check_size "$homepage" $homepage_limit
+	check_size "$description" $description_limit
+    fi
+}
+
+# Print the |----habndy-ruler----...--|
+# Usage: HANDY_RULER
+handy_ruler()
+{
+    if [ "$SHOW_RULER" == "Y" ]; then
+#	$ECHO "appname|-----handy-ruler------------------------------------------------------|"
+	local HANDY_RULER="${package_name}|-----handy-ruler--"
+	check_size "$HANDY_RULER" $screen_width
+	local chars=`get_length "$HANDY_RULER"`
+	while [ $chars -lt $screen_width ]; do
+	    HANDY_RULER+="-"
+	    chars=`get_length "${HANDY_RULER}-"`
+	done
+	HANDY_RULER+="|"
+	$ECHO "$HANDY_RULER"
+    fi
+}
+
+# Print the slack-desc output
+# Usage: PRINT_OUTPUT
+print_output()
+{
+    handy_ruler
+    sanity_checks
+    format ${package_name} "$package_name $version $summary" $summ_lines 
+    format ${package_name} "" $empty_line
+    format ${package_name} "$description" $desc_lines
+    format ${package_name} "$homepage" $homepage_lines
+
+}
+
+
+# Entry point
+# Usage: MAIN [ARG1] [ARG2] ...
+main() 
+    {
+	parse_input "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+	print_output
+    }
+
+
+# GENERAL CONFIGURATION
+# paths to programs used
+WC=/bin/wc
+PRINTF=/bin/printf
+ECHO=/bin/echo
+
+PKGNAME="slackdesc"
+
+summ_lines=1
+empty_line=1
+desc_lines=8
+homepage_lines=1
+screen_width=80
+
+main "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+
