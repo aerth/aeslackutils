@@ -43,24 +43,24 @@ CMDS=${CMDS-()}
 # CMDS=( example foo bar )
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
+VERSION=${VERSION:-0.0.0}
+
+if [ "$SBO_GOGET" == "1" ]; then
+  echo "Will git clone latest master branch to build."
+  VERSION=${FORCE_VERSION:-master}
+fi
+
 export CGO_ENABLED=${CGO_ENABLED:-0} # don't use cgo by default
 
 set -e
+
+## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
 
 # save some time for new slackbuilds
 if [ ! -f "slack-desc" ]; then
   echo "fatal: need slack-desc file. make one at $PWD/slack-desc"
   exit 111
 fi
-
-if [ "$SBO_GOGET" == "1" ]; then
-  echo "Will git clone latest master branch to build."
-    VERSION=${VERSION:-master}
-  else 
-    VERSION=${VERSION:-1.7.11}
-fi
-
-## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
 
 if [ "x$PRGNAM" == "x" ]; then
   echo "fatal: need program name. edit slackbuild script."
@@ -124,7 +124,7 @@ if [ "$SBO_GOGET" == "1" ]; then
 fi
 
 if [ -d ${SRCNAM}-master ] && [ "$VERSION" != "master" ]; then
-mv -nvi ${SRCNAM}-* ${SRCNAM}-${VERSION}
+  mv -nvi ${SRCNAM}-* ${SRCNAM}-${VERSION}
 fi
 
 cd $SRCNAM-$VERSION
@@ -165,7 +165,7 @@ cp -v -a \
   CONTRIBUTORS.md README.md PATENTS.md AUTHORS.md LICENSE.md \
   $PKG/usr/doc/$PRGNAM-$VERSION |& grep -v 'No such' || true # this is a generic go slackbuild
   if [ -f "$CWD/$PRGNAM.SlackBuild" ]; then
-  cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
   else
     # TODO: get actual $0 in case is installed in $PATH or something
     cat $CWD/$0 > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
