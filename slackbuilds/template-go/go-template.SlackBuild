@@ -121,6 +121,14 @@ fi
 if [ "$SBO_GOGET" == "1" ]; then
   echo "Cloning repository"
   git clone --single-branch https://${IMPORT_PATH} ${SRCNAM}-${VERSION}
+  cd ${SRCNAM}-${VERSION}
+  GITCOMMIT=${FORCE_VERSION:-$(git rev-parse --short HEAD)}
+  if [ ! -z "$GITCOMMIT" ]; then
+  cd $TMP
+  mv ${SRCNAM}-${VERSION} ${SRCNAM}-${GITCOMMIT}
+  VERSION=$GITCOMMIT
+  echo Fetch ${SRCNAM}-${GITCOMMIT}
+  fi
 fi
 
 if [ -d ${SRCNAM}-master ] && [ "$VERSION" != "master" ]; then
@@ -152,6 +160,7 @@ if [ -z "${CMDS[@]}" ]; then # single command
   go build -o ${GOBIN}/$PRGNAM |& awk '{print "'${PRGNAM}': " $0}' -
   file ${GOBIN}/${PRGNAM}
 else
+  echo "building commands from ./cmd directory: ${CMDS[@]}"
   for cmd in ${CMDS[@]}; do # ./cmd/ contains commands
     echo building ./cmd/${cmd}
     go build -o ${GOBIN}/${cmd} ./cmd/${cmd}/ |& awk '{print "'${PRGNAM}': " $0}' -
