@@ -45,9 +45,26 @@ BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
 FORCE_VERSION=${FORCE_VERSION:-${VERSION}}
 VERSION=${VERSION:-0.0.0}
+GOTEMPLATEPACK=$0
+if [ ! -f "$GOTEMPLATEPACK" ]; then
+  GOTEMPLATEPACK=$(which "$0")
+fi
+if [ ! -f "$GOTEMPLATEPACK" ]; then
+  echo "cant find $0 file"
+  exit 111
+fi
+
+if [ ! -z "$1" ]; then
+  if [ ! -z $(echo "$1" | egrep -- '^-h') ]; then
+    echo "no help yet, read script"
+    exit 111
+  fi
+  SBO_GOGET=1
+  IMPORT_PATH=$1
+fi
 
 if [ "$SBO_GOGET" == "1" ]; then
-  echo "Will git clone latest master branch to build."
+  echo "Will git clone latest master branch to build: $IMPORT_PATH"
   VERSION=${FORCE_VERSION:-master}
 fi
 
@@ -73,8 +90,6 @@ if [ "x$PRGNAM" == "x" ]; then
   echo 'warn: assuming package name from $IMPORT_PATH: ' $PRGNAM
   sleep 1
 fi
-
-
 
 SRCNAM=$(basename ${IMPORT_PATH})
 
@@ -181,7 +196,7 @@ cp -v -a \
     cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
   else
     # TODO: get actual $0 in case is installed in $PATH or something
-    cat $CWD/$0 > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    cat $GOTEMPLATEPACK > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
     echo "'# Go template SBo build variables:" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
     echo "'#" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
     echo "'# PRGNAM='$PRGNAM" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
