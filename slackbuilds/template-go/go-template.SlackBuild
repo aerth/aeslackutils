@@ -119,7 +119,7 @@ fi
 
 if [ "$SBO_GOGET" == "1" ]; then
   echo "Cloning repository"
-  git clone https://${IMPORT_PATH} ${SRCNAM}-${VERSION}
+  git clone --single-branch https://${IMPORT_PATH} ${SRCNAM}-${VERSION}
 fi
 
 if [ -d ${SRCNAM}-master ] && [ "$VERSION" != "master" ]; then
