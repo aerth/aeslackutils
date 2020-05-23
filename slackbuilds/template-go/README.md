@@ -30,6 +30,23 @@ can be ran from a directory containing only a `slack-desc` file
 
 ### Example
 
+#### Super lazy mode
+
+Build the program located at `github.com/aerth/liner`
+
+(Or, if ./cmd/ exists in the repo, build all commands in ./cmd)
+
+```
+go-template.SlackBuild github.com/aerth/liner
+```
+
+Build only selected commands located at `github.com/foo/bar/cmd/...`
+
+```
+CMDS='example1 example2' go-template.SlackBuild github.com/foo/bar
+
+```
+
 #### Basic usage, cloning latest source
 
 **NOTE: You still need to provide slack-desc file in working directory!**
