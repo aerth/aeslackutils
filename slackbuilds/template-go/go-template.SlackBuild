@@ -1,0 +1,181 @@
+#!/bin/sh
+
+# Slackware build script for Go Things
+
+# Copyright 2020 you <your-email>
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Step 1: edit copyright above
+## Step 2: uncomment and edit the following variables PRGNAM IMPORT_PATH
+## Step 3: set VERSION (required) and commands (optional)
+## Step 4: manually download .zip from github/gitlab etc
+## Step 5: rename master.zip or ${VERSION}.zip to $PRGNAME-$VERSION.zip
+## Step 6: ready to run!
+
+
+# PRGNAM=${PRGNAM:-myprogram}
+# IMPORT_PATH=${IMPORT_PATH:-gitlab.com/me/myprogram}
+
+
+# build only one (or a few) ./cmd/${CMDS} 
+# or below we populate all cmds from ./cmd/ dir
+CMDS=${CMDS-()}
+# CMDS=( example foo bar )
+BUILD=${BUILD:-1}
+TAG=${TAG:-_SBo}
+
+set -e
+
+# save some time for new slackbuilds
+if [ ! -f "slack-desc" ]; then
+  echo "fatal: need slack-desc file. make one at $PWD/slack-desc"
+  exit 111
+fi
+
+if [ "$SBO_GOGET" == "1" ]; then
+  echo "Will git clone latest master branch to build."
+    VERSION=${VERSION:-master}
+  else 
+    VERSION=${VERSION:-1.7.11}
+fi
+
+## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
+
+if [ "x$PRGNAM" == "x" ]; then
+  echo "fatal: need program name. edit slackbuild script."
+  exit 111
+fi
+
+if [ "x$IMPORT_PATH" == "x" ]; then
+  echo "fatal: need import path. edit slackbuild script."
+  exit 111
+fi
+
+
+
+SRCNAM=$(basename ${IMPORT_PATH})
+
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+    *) ARCH=$( uname -m ) ;;
+  esac
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+GOCACHE=${GOCACHE:-${TMP}/gocache}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rf $SRCNAM-$VERSION
+if [ -f $CWD/$SRCNAM-${VERSION}.tar.gz ]; then
+  tar xf $CWD/$SRCNAM-${VERSION}.tar.gz
+elif [ -f $CWD/$SRCNAM-${VERSION}.zip ]; then
+  unzip $CWD/$SRCNAM-${VERSION}.zip
+elif [ "$SBO_GOGET" != "1" ]; then
+  echo "Need $SRCNAM-${VERSION} .tar.gz or .zip or set SBO_GOGET=1"
+  exit 11
+fi
+
+if [ "$SBO_GOGET" == "1" ]; then
+  echo "Cloning repository"
+  git clone https://${IMPORT_PATH} ${SRCNAM}-${VERSION}
+fi
+
+if [ -d ${SRCNAM}-master ] && [ "$VERSION" != "master" ]; then
+mv -nvi ${SRCNAM}-* ${SRCNAM}-${VERSION}
+fi
+
+cd $SRCNAM-$VERSION
+chown -R root:root .
+find -L . \
+  \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
+  -o -perm 511 \) -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
+  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
+
+unset GOPATH GOBIN GOFLAGS CGO_ENABLED GO111MODULE
+
+export GOFLAGS="-a -v -ldflags=-w -ldflags=-s -tags=osusergo,netgo"  # build small static binary
+
+mkdir -p ${PKG}/usr/bin
+mkdir -p ${PKG}/usr/share/gocode/src/${IMPORT_PATH}
+cp -a .  ${PKG}/usr/share/gocode/src/${IMPORT_PATH}
+
+export GOPATH=${PKG}/usr/share/gocode
+export GOBIN=${PKG}/usr/bin
+CMDS=${CMDS:-$(ls ./cmd 2>/dev/null|| true)}
+
+if [ -z "${CMDS[@]}" ]; then # single command
+  echo building ${GOBIN}/$PRGNAM "$(go list)"
+  go build -o ${GOBIN}/$PRGNAM |& awk '{print "'${PRGNAM}': " $0}' -
+  file ${GOBIN}/${PRGNAM}
+else
+  for cmd in ${CMDS[@]}; do # ./cmd/ contains commands
+    echo building ./cmd/${cmd}
+    sleep 1
+    go build -o ${GOBIN}/${cmd} ./cmd/${cmd}/ |& awk '{print "'${PRGNAM}': " $0}' -
+    file ${GOBIN}/${cmd}
+  done
+fi
+
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cp -v -a \
+  CONTRIBUTORS README PATENTS AUTHORS LICENSE \
+  CONTRIBUTORS.md README.md PATENTS.md AUTHORS.md LICENSE.md \
+  $PKG/usr/doc/$PRGNAM-$VERSION |& grep -v 'No such' || true # this is a generic go slackbuild
+  if [ -f "$CWD/$PRGNAM.SlackBuild" ]; then
+  cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+  else
+    # TODO: get actual $0 in case is installed in ~/bin/ or something
+    cat $CWD/$0 > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'# Go template SBo build variables:" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'#" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'# PRGNAM='$PRGNAM" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'# SBO_GOGET='$SBO_GOGET" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'# IMPORT_PATH='$IMPORT_PATH" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+    echo "'# CMDS='$CMDS" >> $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+  fi
+
+  mkdir -p $PKG/install
+  cat $CWD/slack-desc > $PKG/install/slack-desc
+
+  cd $PKG
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.${PKGTYPE:-tgz}
