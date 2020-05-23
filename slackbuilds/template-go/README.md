@@ -30,6 +30,28 @@ can be ran from a directory containing only a `slack-desc` file
 
 ### Example
 
+#### Basic usage, cloning latest source
+
+**NOTE: You still need to provide slack-desc file in working directory!**
+
+Build commands foo and bar from the master branch ./cmd/foo and ./cmd/bar:
+
+Will build `foobase-${commithash slackbuild}`.
+
+In this example, go-template.SlackBuild is executable and lives in ~/bin/
+
+```
+sudo env SBO_GOGET=1 CMDS='foo bar' IMPORT_PATH=github.com/user/foobase ~/bin/go-template.SlackBuild
+```
+
+Or, only build the main package in `./` relative to git repository:
+
+```
+sudo env SBO_GOGET=1 IMPORT_PATH=github.com/user/foobase ~/bin/go-template.SlackBuild
+```
+
+#### Other examples
+
 Build markdownd from latest master branch commit:
 
 ```
@@ -40,15 +62,5 @@ Set version override:
 
 ```
 sudo env VERSION=foo SBO_GOGET=1 IMPORT_PATH=github.com/aerth/markdownd PRGNAM=markdownd ../template-go/go-template.SlackBuild
-```
-
-Build commands foo and bar from the master branch ./cmd/foo and ./cmd/bar:
-
-Will build foobase-${commithash slackbuild.
-
-In this example, go-template.SlackBuild is executable and lives in ~/bin/
-
-```
-sudo env SBO_GOGET=1 CMDS='foo bar' IMPORT_PATH=github.com/user/foobase ~/bin/go-template.SlackBuild
 ```
 
