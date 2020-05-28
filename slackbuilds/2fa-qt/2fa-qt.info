@@ -1,0 +1,8 @@
+PRGNAM="2fa-qt"
+VERSION="v0.0.1"
+DOWNLOAD="https://github.com/aerth/2fa-qt/archive/v0.0.1.zip"
+HOMEPAGE="https://github.com/aerth/2fa-qt"
+MD5SUM="ab684730e468584f930805f31f13777b"
+REQUIRES="qt5"
+MAINTAINER="aerth"
+EMAIL="aerth@memeware.net"
