@@ -1,0 +1,8 @@
+PRGNAM="2fa"
+VERSION="de5e8c7"
+DOWNLOAD="https://github.com/rsc/2fa/archive/de5e8c7.zip"
+HOMEPAGE="https://github.com/rsc/2fa"
+MD5SUM="ebb795866fe827aa941735f808243754"
+REQUIRES="go"
+MAINTAINER="aerth"
+EMAIL="aerth@memeware.net"
