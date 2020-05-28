@@ -1,0 +1,152 @@
+#!/bin/sh
+
+# Slackware build script for age ("actually good encryption" tool)
+# Project homepage: https://age-encryption.org
+#
+# Copyright 2020 aerth <aerth@memeware.net>
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PRGNAM=${PRGNAM:-age}
+
+set -o pipefail
+BUILD=${BUILD:-1}
+TAG=${TAG:-_SBo}
+VERSION=${VERSION:-c9a35c0}
+IMPORT_PATH=github.com/FiloSottile/age
+export CGO_ENABLED=${CGO_ENABLED:-0} # don't use cgo by default
+set -e -u
+
+## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
+
+# save some time for new slackbuilds
+if [ ! -f "slack-desc" ]; then
+  echo "fatal: need slack-desc file. make one at $PWD/slack-desc"
+  exit 111
+fi
+
+if [ "x$IMPORT_PATH" == "x" ]; then
+  echo "fatal: need import path. edit slackbuild script."
+  exit 111
+fi
+
+if [ "x$PRGNAM" == "x" ]; then
+  PRGNAM=$(basename "$IMPORT_PATH")
+  echo 'warn: assuming package name from $IMPORT_PATH: ' $PRGNAM
+  sleep 1
+fi
+
+SRCNAM=$(basename ${IMPORT_PATH})
+
+set +u
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+    *) ARCH=$( uname -m ) ;;
+  esac
+fi
+set -u
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+GOCACHE=${GOCACHE:-${TMP}/gocache}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+
+rm -rvf $PKG
+rm -rvf $TMP/${SRCNAM}-${VERSION}*
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rvf $SRCNAM-$VERSION
+set -ex
+if [ -f $CWD/$SRCNAM-${VERSION}.tar.gz ]; then
+  tar xf $CWD/$SRCNAM-${VERSION}.tar.gz
+elif [ -f $CWD/$SRCNAM-${VERSION}.zip ]; then
+  unzip $CWD/$SRCNAM-${VERSION}.zip
+  mv -nv $TMP/${SRCNAM}-*${VERSION}* $TMP/${SRCNAM}-${VERSION}
+elif [ -f $CWD/${VERSION}.zip ]; then
+  unzip $CWD/${VERSION}.zip
+  mv -nv $TMP/${SRCNAM}-*${VERSION}* $TMP/${SRCNAM}-${VERSION}
+else 
+  echo need ${VERSION}.zip
+  exit 111
+fi
+ls -all
+
+cd ${SRCNAM}-${VERSION}
+chown -R root:root .
+find -L . \
+  \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
+  -o -perm 511 \) -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
+  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
+
+unset GOPATH GOBIN GOFLAGS GO111MODULE
+
+export GOFLAGS="-a -v -ldflags=-w -ldflags=-s -tags=osusergo,netgo"  # build small static binary
+go env
+
+mkdir -p ${PKG}/usr/bin
+mkdir -p ${PKG}/usr/share/gocode/src/${IMPORT_PATH}
+cp -a .  ${PKG}/usr/share/gocode/src/${IMPORT_PATH}
+
+export GOPATH=${PKG}/usr/share/gocode
+export GOBIN=${PKG}/usr/bin
+
+echo building ${GOBIN}/$PRGNAM "$(go list)"
+go get -v -d ./... |& awk '{print "'${PRGNAM}': " $0}' -
+
+#go build -o ${GOBIN} ./cmd/... |& awk '{print "'${PRGNAM}': " $0}' - 
+# the above may require a new version of go, so lets do it manually.
+
+go build -o ${GOBIN}/age ./cmd/age |& awk '{print "'${PRGNAM}': " $0}' -
+go build -o ${GOBIN}/age-keygen ./cmd/age-keygen |& awk '{print "'${PRGNAM}': " $0}' -
+
+
+file ${GOBIN}/${PRGNAM} || exit 111
+
+sleep 3
+
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cp -v -a \
+  CONTRIBUTORS README PATENTS AUTHORS LICENSE \
+  CONTRIBUTORS.md README.md PATENTS.md AUTHORS.md LICENSE.md \
+  $PKG/usr/doc/$PRGNAM-$VERSION |& grep -v 'No such' || true # this is a generic go slackbuild
+
+cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+cd $PKG
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.${PKGTYPE:-tgz}

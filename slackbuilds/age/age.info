@@ -1,0 +1,8 @@
+PRGNAM="age"
+VERSION="c9a35c0"
+DOWNLOAD="https://github.com/FiloSottile/age/archive/c9a35c0.zip"
+HOMEPAGE="https://age-encryption.org"
+MD5SUM="28f8e51b8342d0aaf231e97af0d0bdd7"
+REQUIRES="go"
+MAINTAINER="aerth"
+EMAIL="aerth@memeware.net"
