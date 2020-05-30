@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# slackbuilder by aerth (https://github.com/aerth/slack)
+
+MIRROR_DIR=/x/mirror/poncebuilds
+#MIRROR_DIR=/x/mirror/slackbuilds
+OUTPUT=${OUTPUT-$HOME/sbos} 
+
+if [ ! -d "$MIRROR_DIR" ]; then
+	echo "Need $MIRROR_DIR to exist. Did you clone a slackbuilds repo yet?"
+	exit 10
+fi
+
+set -e
+
+if [ "$1" = "search" ]; then
+	shift
+	cd $MIRROR_DIR
+	FOUND=$(find $MIRROR_DIR -type d -name "$1")
+	if [ ! -z "$FOUND" ]; then
+		echo Found $(echo $FOUND | wc -w ) results:
+		echo
+		for f in $FOUND; do
+			if [ ! -f "$f/$(basename "$f").info" ]; then
+				echo Error: "$f/$(basename "$f").info"
+				exit 113
+			else
+				echo "$(basename "$f") ($(source $f/*.info && echo $VERSION)) [$f] "
+			fi
+		done
+		exit 0
+	fi
+	echo No exact results. Here are some findings:
+	FOUND=$(find $MIRROR_DIR -type d -name "$1*")
+	if [ ! -z "$FOUND" ]; then
+		echo Found $(echo $FOUND | wc -w ) results:
+		echo
+		for f in $FOUND; do
+			if [ ! -f "$f/$(basename "$f").info" ]; then
+				echo Error: "$f/$(basename "$f").info doesn't exist"
+				exit 113
+			else
+				echo "$(basename "$f") ($(source $f/*.info && echo $VERSION)) [$f] "
+			fi
+		done
+		exit 0
+	fi
+	echo "not found in $MIRROR_DIR"
+	exit 2
+fi
+
+
+if [ ! "$USER" = "root" ]; then echo must run as root; exit 111; fi
+
+# package manager style: sbbuild <program-name>
+if [ ! -z "$1" ] && [ ! -f slack-desc ]; then
+	cd $MIRROR_DIR/*/$1
+	if [ ! -f slack-desc ]; then
+		echo "package $1 not found in $MIRROR_DIR"
+		exit 1
+	fi
+	cat slack-desc
+fi
+
+# sanity check
+if [ ! -f *.info ]; then echo '*.info not found, did you mean to "search"? or, you arent in a SlackBuild directory.'; exit 112; fi
+if [ ! -f *.SlackBuild ]; then echo '*.SlackBuild not found'; exit 113; fi
+
+builder(){
+	time (  . *.info && \
+		echo Building *.SlackBuild ${VERSION}
+			if [ ! -z "$DOWNLOAD_x86_64" ]; then
+				echo "using x86_64 dependency requirements"
+				DLPATH=$DOWNLOAD_x86_64
+				MD5=$MD5SUM_x86_64
+			else
+				DLPATH=$DOWNLOAD
+				MD5=$MD5SUM
+			fi
+			if [ ! -f "$(basename $DLPATH)" ]; then
+				echo "Downloading: $DLPATH"
+				sleep 2
+				wget -c "$DLPATH"
+				echo "Download complete."
+			else
+				echo "source already exists: $(file $(basename $DLPATH))"
+			fi
+			sleep 2
+			XMD5SUM="$(md5sum $(basename $DLPATH) | awk '{print $1}')"
+			echo "$(basename $DLPATH) MD5=$XMD5SUM"
+			if [ "$XMD5SUM" != "$MD5" ]; then
+				echo "MD5 mismatch: expected $MD5"
+				exit 222
+			fi
+			bash *.SlackBuild && \
+				echo Build complete)
+			}
+
+		(
+		. *.info
+		OUTPUT=${OUTPUT} builder
+		unset PKGTAR
+		for i in $OUTPUT/$1-${VERSION}*.tgz; do
+			PKGTAR=$i
+		done
+
+		printf "Would you like to install this package: $PKGTAR ? [N/y] "  
+		read CONTINUE
+		if [ ! -z "$CONTINUE" ] && [ "$CONTINUE" == "y" ]; then
+			set -x
+			installpkg $PKGTAR
+		fi
+	)
+
