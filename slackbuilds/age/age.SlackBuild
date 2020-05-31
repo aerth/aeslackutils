@@ -23,9 +23,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PRGNAM=${PRGNAM:-age}
-
 set -o pipefail
+
+PRGNAM=${PRGNAM:-age}
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
 VERSION=${VERSION:-c9a35c0}
@@ -33,7 +33,11 @@ IMPORT_PATH=github.com/FiloSottile/age
 export CGO_ENABLED=${CGO_ENABLED:-0} # don't use cgo by default
 set -e -u
 
-## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
+GOVER=$(go version)
+if [ -z $(echo ${GOVER} | grep -v gccgo) ]; then 
+  echo "unsupported go version: $GOVER" 
+  exit 111
+fi
 
 # save some time for new slackbuilds
 if [ ! -f "slack-desc" ]; then
@@ -45,21 +49,18 @@ if [ "x$IMPORT_PATH" == "x" ]; then
   echo "fatal: need import path. edit slackbuild script."
   exit 111
 fi
-
-if [ "x$PRGNAM" == "x" ]; then
-  PRGNAM=$(basename "$IMPORT_PATH")
-  echo 'warn: assuming package name from $IMPORT_PATH: ' $PRGNAM
-  sleep 1
-fi
-
 SRCNAM=$(basename ${IMPORT_PATH})
+
+## NO NEED TO EDIT BELOW THIS LINE BUT FEEL FREE TO
 
 set +u
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
-    arm*) ARCH=arm ;;
-    *) ARCH=$( uname -m ) ;;
+    i?86) ARCH=386 GOARCH=386 ;;
+    arm*) ARCH=arm GOARCH=arm ;;
+    x86_64) ARCH=x86_64 GOARCH=amd64 ;;
+    *) ARCH=$( uname -m ) GOARCH=$( uname -m );;
+
   esac
 fi
 set -u
@@ -70,29 +71,18 @@ GOCACHE=${GOCACHE:-${TMP}/gocache}
 PKG=$TMP/package-$PRGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-else
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-fi
-
-
 rm -rvf $PKG
-rm -rvf $TMP/${SRCNAM}-${VERSION}*
+rm -rvf $TMP/${SRCNAM}-*${VERSION}*
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
 rm -rvf $SRCNAM-$VERSION
 set -ex
+
+# find source by typical names given by github-generated archives
+# and normalize dir name
 if [ -f $CWD/$SRCNAM-${VERSION}.tar.gz ]; then
   tar xf $CWD/$SRCNAM-${VERSION}.tar.gz
+  mv -nv $TMP/${SRCNAM}-*${VERSION}* $TMP/${SRCNAM}-${VERSION}
 elif [ -f $CWD/$SRCNAM-${VERSION}.zip ]; then
   unzip $CWD/$SRCNAM-${VERSION}.zip
   mv -nv $TMP/${SRCNAM}-*${VERSION}* $TMP/${SRCNAM}-${VERSION}
@@ -100,7 +90,7 @@ elif [ -f $CWD/${VERSION}.zip ]; then
   unzip $CWD/${VERSION}.zip
   mv -nv $TMP/${SRCNAM}-*${VERSION}* $TMP/${SRCNAM}-${VERSION}
 else 
-  echo need ${VERSION}.zip
+  echo need ${VERSION}.zip or ${SRCNAM}-${VERSION}.tar.gz
   exit 111
 fi
 ls -all
@@ -134,11 +124,11 @@ go get -v -d ./... |& awk '{print "'${PRGNAM}': " $0}' -
 go build -o ${GOBIN}/age ./cmd/age |& awk '{print "'${PRGNAM}': " $0}' -
 go build -o ${GOBIN}/age-keygen ./cmd/age-keygen |& awk '{print "'${PRGNAM}': " $0}' -
 
-
 file ${GOBIN}/${PRGNAM} || exit 111
 
 sleep 3
 
+# pack up the docs and this slackbuild script and slack-desc
 mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
 cp -v -a \
   CONTRIBUTORS README PATENTS AUTHORS LICENSE \
