@@ -1,0 +1,6 @@
+#!/bin/bash
+# show cpu frequencies, temperature, load
+if [ "$1" = "w1" ]; then watch -n.5 "cat /proc/cpuinfo | grep \"^[c]pu MHz\" | sort -k 3 -n -r"; fi
+if [ "$1" = "w2" ]; then watch -n.5 sensors; fi
+tmux new $0 w1\; split-window -hf $0 w2\; split-window -vf htop
+
