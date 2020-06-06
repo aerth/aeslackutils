@@ -9,24 +9,32 @@ fi
 
 sharedir=$2
 if [ ! -d "$sharedir" ]; then
-  echo need directory to create filesystem
-  echo example: . or ./foo
-  printf "what directory to share? "
+  printf "source directory for ISO filesystem? "
   showflags=1
   read sharedir
 fi
 
-if [ 1 = $showflags ]; then
-  echo "Next time, run:"
-  echo $0 $target $sharedir
-  sleep 2
+if [ ! -d "$sharedir" ]; then
+  echo "fatal: $sharedir" is not a directory
+  exit 222
 fi
 
-set -ex
+if [ 1 = $showflags ]; then
+  echo
+  echo
+  echo "Next time, run: $(basename $0) $target $sharedir"
+  echo
+  echo "Press ENTER to continue, or ctrl+c to bail out"
+  read PRESS_ENTER
+fi
+
+
 cdrom=${cdrom-$(tempfile -p cdrom -s .iso)}
 
-echo "Creating ISO filesystem..."
+echo
+echo "##### Creating ISO filesystem... ######"
 mkisofs -J -r -o $cdrom $sharedir
 
-echo "Mounting in VM..."
+echo
+echo "##### Mounting in VM... #####"
 virsh -c qemu:///system change-media $target hdb $cdrom
