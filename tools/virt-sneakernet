@@ -1,0 +1,32 @@
+#!/bin/bash
+showflags=0
+target=$1
+if [ -z "$target" ]; then
+  printf "what virt machine? "
+  showflags=1
+  read target
+fi
+
+sharedir=$2
+if [ ! -d "$sharedir" ]; then
+  echo need directory to create filesystem
+  echo example: . or ./foo
+  printf "what directory to share? "
+  showflags=1
+  read sharedir
+fi
+
+if [ 1 = $showflags ]; then
+  echo "Next time, run:"
+  echo $0 $target $sharedir
+  sleep 2
+fi
+
+set -ex
+cdrom=${cdrom-$(tempfile -p cdrom -s .iso)}
+
+echo "Creating ISO filesystem..."
+mkisofs -J -r -o $cdrom $sharedir
+
+echo "Mounting in VM..."
+virsh -c qemu:///system change-media $target hdb $cdrom
