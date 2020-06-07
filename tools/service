@@ -1,0 +1,77 @@
+#!/bin/bash
+# Copyright 2020 aerth <aerth@riseup.net>
+# MIT License, Free to modify
+#
+# service
+#
+# easy to use alias for /etc/rc.d/rc.[service-name]
+# ...such as 'sudo service sshd restart'
+#
+# tested on slackware, at least...
+
+bashcmd=${SHELL-/bin/bash}
+prgname=$(basename "$0")
+prgname=${prgname-service}
+
+# help mode
+if [ -z "$1" ] || [ "$(echo "$1" | egrep '^?-h')" ]; then
+  echo $prgname: rc.d service manager
+  echo 
+  echo "managing services (examples)":
+  printf '\t%s %s\n' "$prgname" "sshd restart"
+  printf '\t%s %s\n' "$prgname" "webserver stop"
+  printf '\t%s %s\n' "$prgname" "-oneshot thing start"
+  printf '\t%s %s\n' "$prgname" "3"
+  printf '\t%s %s\n' "$prgname" "-list"
+  echo flags: 
+  printf '\t-list    (list all services)\n'
+  printf '\t-oneshot (use if service is not executable)\n'
+  exit 1
+fi
+
+service(){
+  services=$(cd /etc/rc.d/ && ls -1 rc.*)
+  numservices=$(echo $services | wc -w)
+
+  # oneshot flag (for not-executables)
+  force=0
+  if [ "$1" = "-oneshot" ]; then
+    force=1
+    shift 1
+  fi
+
+  # list packages
+  if [ "$1" = "-list" ]; then 
+    echo "found ${numservices} services!"
+    for i in $services; do
+      srv=$(basename $i | sed 's|rc\.||g')
+      printf "$srv: " 
+      cd /etc/rc.d/ && \
+        ls -alt --color=always rc.$srv  \
+        | sed 's/rc\.//g' \
+
+      done
+      exit 0
+  fi
+
+  # does service exist?
+  if [ ! -f /etc/rc.d/rc.$1 ]; then
+    echo "unknown service, try \"-list\" flag"
+    exit 3
+  fi
+
+  # check executable
+  if [ ! -x "/etc/rc.d/rc.$1" ] && [ $force != 1 ]; then
+    echo service is not enabled. use -oneshot flag
+    exit 4
+  fi
+
+  # send rest of arguments to service
+  srv=$1
+  shift 1
+  args=$@
+  set -ex
+  $bashcmd "/etc/rc.d/rc.$srv" $args; exit $?
+}
+
+service $@ | more -c
