@@ -6,6 +6,8 @@ MIRROR_DIR=/x/mirror/poncebuilds
 #MIRROR_DIR=/x/mirror/slackbuilds
 OUTPUT=${OUTPUT-$HOME/sbos} 
 TAG=${TAG--${SUDO_USER}}
+MAKEFLAGS=${MAKEFLAGS--j$(nproc)}
+echo $MAKEFLAGS
 
 if [ ! -d "$MIRROR_DIR" ]; then
 	echo "Need $MIRROR_DIR to exist. Did you clone a slackbuilds repo yet?"
@@ -92,7 +94,7 @@ builder(){
 				echo "MD5 mismatch: expected $MD5"
 				exit 222
 			fi
-			env TAG=$TAG bash *.SlackBuild && \
+			env MAKEFLAGS=$MAKEFLAGS TAG=$TAG bash *.SlackBuild && \
 				echo Build complete)
 			}
 
