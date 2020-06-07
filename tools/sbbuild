@@ -5,6 +5,7 @@
 MIRROR_DIR=/x/mirror/poncebuilds
 #MIRROR_DIR=/x/mirror/slackbuilds
 OUTPUT=${OUTPUT-$HOME/sbos} 
+TAG=${TAG--${SUDO_USER}}
 
 if [ ! -d "$MIRROR_DIR" ]; then
 	echo "Need $MIRROR_DIR to exist. Did you clone a slackbuilds repo yet?"
@@ -83,16 +84,15 @@ builder(){
 				wget -c "$DLPATH"
 				echo "Download complete."
 			else
-				echo "source already exists: $(file $(basename $DLPATH))"
+				echo "Source already exists: $(file $(basename $DLPATH))"
 			fi
-			sleep 2
 			XMD5SUM="$(md5sum $(basename $DLPATH) | awk '{print $1}')"
 			echo "$(basename $DLPATH) MD5=$XMD5SUM"
 			if [ "$XMD5SUM" != "$MD5" ]; then
 				echo "MD5 mismatch: expected $MD5"
 				exit 222
 			fi
-			bash *.SlackBuild && \
+			env TAG=$TAG bash *.SlackBuild && \
 				echo Build complete)
 			}
 
