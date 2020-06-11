@@ -74,4 +74,4 @@ service(){
   $bashcmd "/etc/rc.d/rc.$srv" $args; exit $?
 }
 
-service $@ | more -c
+service $@ | less -dXKF
